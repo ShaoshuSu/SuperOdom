@@ -118,7 +118,7 @@ You can clone `livox_ros_driver2` and `rviz_2d_overlay_plugins` using the follow
 - [Livox-ROS-driver2](https://github.com/Livox-SDK/livox_ros_driver2)
 - [ROS2-jsk-plugin](https://github.com/teamspatzenhirn/rviz_2d_overlay_plugins)
 
-> **Important**: Maintain this exact structure within `ros_ws/src`
+> **Important**: Maintain this exact structure within `ros2_ws/src`
 
 ### Docker Container Setup
 ```bash
@@ -208,7 +208,7 @@ Visualize in RVIZ2:
 # launch this in a new bash window
 docker exec --privileged -it superodom-ros2 /bin/bash
 source install/setup.bash
-cd ~/ros_ws/src/SuperOdom/super_odometry
+cd ~/ros2_ws/src/SuperOdom/super_odometry
 rviz2 -d ros2.rviz
 ```
 

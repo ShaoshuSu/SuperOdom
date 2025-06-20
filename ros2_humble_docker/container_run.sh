@@ -16,18 +16,24 @@ if [ "$#" -ne 2 ]; then
   exit 1
 fi
 
+sleep 1
+
 # Assign the arguments to variables for clarity
 CONTAINER_NAME="$1"
 IMAGE_NAME="$2"
 PROJECT_DIR="/path/to/your/superodom"
 DATASET_DIR="/path/to/your/dataset"
 
+# Allow X server connections
+xhost +local:docker
+
 # Launch the nvidia-docker container with the provided image name and tag
 docker run --privileged -it \
+            --runtime=nvidia \
             --gpus all \
            -e NVIDIA_DRIVER_CAPABILITIES=all \
            -e NVIDIA_VISIBLE_DEVICES=all \
-           --volume="$PROJECT_DIR:/root/ros2_ws/src" \
+           --volume="$PROJECT_DIR:/root/ros2_ws" \
            --volume="$DATASET_DIR:/root/data" \
            --volume=/tmp/.X11-unix:/tmp/.X11-unix:rw \
            --net=host \
@@ -35,5 +41,7 @@ docker run --privileged -it \
            --shm-size=4gb \
            --name="$CONTAINER_NAME" \
            --env="DISPLAY=$DISPLAY" \
-           --rm \
+           --env="QT_X11_NO_MITSHM=1" \
+           --env="XAUTHORITY=$XAUTHORITY" \
+           --env="QT_GRAPHICSSYSTEM=native" \
            "$IMAGE_NAME" /bin/bash

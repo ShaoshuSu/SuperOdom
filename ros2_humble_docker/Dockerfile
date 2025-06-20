@@ -1,13 +1,30 @@
 # Author: TaeYoung Kim
 # email: tyoung96@yonsei.ac.kr
 
-FROM osrf/ros:humble-desktop-full
+FROM --platform=linux/arm64 ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
 
 ENV NVIDIA_VISIBLE_DEVICES \
     ${NVIDIA_VISIBLE_DEVICES:-all}
 ENV NVIDIA_DRIVER_CAPABILITIES \
     ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
     
+# Install ROS2 Humble
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    gnupg \
+    lsb-release \
+    curl \
+    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=arm64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y ros-humble-desktop-full \
+    python3-colcon-common-extensions \
+    python3-colcon-core \
+    python3-colcon-ros \
+    python3-colcon-test-result \
+    && apt-get clean
     
 # Install PCL & Eigen & essential libraries
 RUN apt-get update \
@@ -25,11 +42,9 @@ RUN apt-get update \
         less \
         htop \
         libsm6 libxext6 libgl1-mesa-glx libxrender-dev \ 
-        curl \
  && apt-get clean
 
-RUN export DEBIAN_FRONTEND=noninteractive \
- && sudo apt-get update \
+RUN sudo apt-get update \
  && sudo -E apt-get install -y \
     tzdata \
  && sudo ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime \
@@ -52,7 +67,7 @@ RUN pip3 install --no-cache-dir pandas visdom scikit-image scikit-learn numba Pi
 RUN pip3 install --no-cache-dir pyyaml pycryptodome bagpy Cython
 
 RUN apt-get -y install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential
-# RUN sudo rosdep init
+RUN rosdep init
 RUN rosdep update
 RUN pip3 install -U catkin_tools gym
 RUN apt-get -y install ros-humble-grid-map-msgs ros-humble-grid-map
