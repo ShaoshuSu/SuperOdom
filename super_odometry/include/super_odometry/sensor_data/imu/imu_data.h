@@ -121,7 +121,10 @@ public:
         gyr_cov = gyr_cov * (Num - 1.0) / Num + (gyr_cur - gyr_mean).cwiseProduct(gyr_cur - gyr_mean) / (Num - 1.0);
         Num++;
     }
-  
+    // // Calculate and log the buffer size
+    int buffer_size = imuBuf.measMap_.size();
+    std::cout << "IMU Buffer Size: " << buffer_size << " measurements" << std::endl;
+
     // if (Num > 1 && time_diff_count > 0) {
     //     // Get total time span
     //     double total_time_span = imuBuf.measMap_.rbegin()->second->time - imuBuf.measMap_.begin()->second->time;

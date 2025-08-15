@@ -15,7 +15,7 @@ public:
     // Parameters
     lidar_in_ = declare_parameter<std::string>("lidar_in", "/livox/lidar");
     imu_in_ = declare_parameter<std::string>("imu_in", "/livox/imu");
-  lidar_out_ = declare_parameter<std::string>("lidar_out", "/livox_flipped/lidar");
+    lidar_out_ = declare_parameter<std::string>("lidar_out", "/livox_flipped/lidar");
     imu_out_ = declare_parameter<std::string>("imu_out", "/livox_flipped/imu");
     double roll_deg = declare_parameter<double>("roll_deg", 180.0);
     double pitch_deg = declare_parameter<double>("pitch_deg", 0.0);
@@ -37,12 +37,19 @@ public:
     // Use compatible QoS: RELIABLE for LiDAR, BEST_EFFORT for IMU
     rclcpp::QoS lidar_qos(20);
     lidar_qos.reliability(rclcpp::ReliabilityPolicy::Reliable);
-    lidar_qos.durability(rclcpp::DurabilityPolicy::Volatile);
+    lidar_qos.durability(rclcpp::DurabilityPolicy::Volatile); 
     
-    rclcpp::QoS imu_qos(10);
-    imu_qos.reliability(rclcpp::ReliabilityPolicy::BestEffort);
-    imu_qos.durability(rclcpp::DurabilityPolicy::Volatile);
+    // rclcpp::QoS imu_qos(10);
+    // imu_qos.reliability(rclcpp::ReliabilityPolicy::BestEffort);
+    // imu_qos.durability(rclcpp::DurabilityPolicy::Volatile);
     
+    auto imu_qos = rclcpp::SensorDataQoS().keep_last(400);
+    imu_qos.reliability(rclcpp::ReliabilityPolicy::Reliable);
+
+    RCLCPP_INFO(get_logger(), "\033[1;32mUsing imu_qos.reliability in %s: %s\033[0m",
+        get_name(), (imu_qos.reliability() == rclcpp::ReliabilityPolicy::Reliable) ? "RELIABLE" : "BEST_EFFORT");
+
+
     // Subscribe to Livox CustomMsg only (avoids type conflicts)
     livox_sub_ = create_subscription<livox_ros_driver2::msg::CustomMsg>(
         lidar_in_, lidar_qos,

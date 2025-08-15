@@ -207,6 +207,54 @@ namespace super_odometry {
         nav_msgs::msg::Odometry::SharedPtr cur_frame = nullptr;
         nav_msgs::msg::Odometry::SharedPtr last_frame = nullptr;
         imuPreintegration_config config_;
+
+    // --- Lever-arm compensation related (dynamic, filter-based) ---
+    bool enable_lever_arm_compensation_ = true;      // runtime param
+    double gyro_lp_alpha_ = 0.1;                     // low-pass factor for gyro (0-1)
+    double angular_acc_lp_alpha_ = 0.1;              // low-pass factor for angular acceleration
+    double last_imu_converter_time_ = -1.0;          // last timestamp used for dt
+    Eigen::Vector3d gyr_filtered_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d angular_acc_filtered_ = Eigen::Vector3d::Zero();
+
+    // --- Accelerometer bias online estimation (static detection) ---
+    Eigen::Vector3d acc_bias_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d acc_static_sum_ = Eigen::Vector3d::Zero();
+    int static_sample_count_ = 0;
+    int static_sample_required_ = 200;          // number of consecutive static samples to update bias
+    double static_gyr_thresh_ = 0.02;            // rad/s threshold for static
+    double static_acc_dev_thresh_ = 0.15;        // m/s^2 acceptable deviation of |acc| from g
+    bool acc_bias_initialized_ = false;          // flag once bias computed
+
+    // --- Adaptive gravity / unit detection ---
+    bool gravity_scale_determined_ = false;      // whether we identified if accel is in g or m/s^2
+    double detection_gravity_scale_ = 0.0;       // 1.0 if in g units else config_.imuGravity
+    double acc_norm_sum_ = 0.0;                  // accumulation for gravity detection
+    int acc_norm_count_ = 0;                     // sample count for gravity detection
+    int acc_norm_required_ = 120;                // ~0.6s @200Hz
+
+    // --- dt anomaly tracking ---
+    int dt_anomaly_count_ = 0;
+    int dt_anomaly_log_count_ = 0;
+    long long dt_total_count_ = 0;              // total processed dt samples (for ratio)
+    bool lever_arm_auto_disabled_ = false;       // auto disable lever-arm compensation after repeated anomalies
+    // --- Additional runtime state (Priority A+B) ---
+    double last_raw_imu_time_ = -1.0;            // for early monotonic gating in imuHandler
+    int dropped_converter_out_of_order_count_ = 0; // count of dropped raw IMU due to non-monotonic stamps
+    bool gravity_scaled_applied_ = false;        // whether we have multiplied g-unit data into m/s^2
+    bool acc_bias_injected_ = false;             // whether bias has been injected into GTSAM integrators
+
+    // --- Path publishing control ---
+    bool publish_path_without_subscriber_ = true; // always publish path regardless of subscription count
+    double path_publish_interval_ = 0.1;          // seconds between path samples
+    double last_path_time_ = -1.0;                // last time a path pose was appended
+    uint32_t path_time_rewind_count_ = 0;         // count of time rewinds for path gating
+    nav_msgs::msg::Path imuPath_;                 // accumulated path (shared instead of static inside function)
+    // --- Path debug counters ---
+    uint32_t path_skip_not_init_count_ = 0;       // skipped because IMU not initialized
+    uint32_t path_skip_not_optimized_count_ = 0;  // skipped because first optimization not done
+    uint32_t path_skip_interval_count_ = 0;       // skipped because interval not reached
+    uint32_t path_skip_no_subscriber_count_ = 0;  // skipped because no subscriber and flag disabled
+
     };
 
 }

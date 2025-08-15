@@ -30,13 +30,20 @@ namespace super_odometry {
         rclcpp::SubscriptionOptions sub_options;
         sub_options.callback_group = cb_group_;
 
-        rclcpp::QoS imu_qos(10);
-        imu_qos.best_effort();  // Use BEST_EFFORT reliability
-        imu_qos.keep_last(10);  // Keep last 10 messages
+        // rclcpp::QoS imu_qos(10);
+        // imu_qos.best_effort();  // Use BEST_EFFORT reliability
+        // imu_qos.keep_last(10);  // Keep last 10 messages
+
+        auto imu_qos = rclcpp::SensorDataQoS().keep_last(400);
+        imu_qos.reliability(rclcpp::ReliabilityPolicy::Reliable);
+
+        RCLCPP_INFO(get_logger(), "\033[1;32mUsing imu_qos.reliability in %s: %s\033[0m",
+            get_name(), (imu_qos.reliability() == rclcpp::ReliabilityPolicy::Reliable) ? "RELIABLE" : "BEST_EFFORT");
 
         rclcpp::QoS laser_qos(10);
         laser_qos.best_effort();  // Use BEST_EFFORT reliability
-        laser_qos.keep_last(2);  // Keep last 10 messages
+        laser_qos.keep_last(20);  // Keep last 10 messages
+        // auto laser_qos = rclcpp::SensorDataQoS().keep_last(20); 
 
         if(!readGlobalparam(shared_from_this()))
         {
@@ -70,7 +77,7 @@ namespace super_odometry {
                     std::bind(&featureExtraction::laserCloudHandler, this,
                     std::placeholders::_1), sub_options);
         } else if (config_.sensor == SensorType::LIVOX) {
-            subLivoxCloud = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(LASER_TOPIC, 20, 
+            subLivoxCloud = this->create_subscription<livox_ros_driver2::msg::CustomMsg>(LASER_TOPIC, laser_qos, 
                     std::bind(&featureExtraction::livoxHandler, this,
                     std::placeholders::_1), sub_options);
         } //TODO: add this to config
