@@ -297,20 +297,20 @@ void laserMapping::initializeFirstFrame(){
 
     }
 
-    //initialize position 
+    //initialize position
     q_wodom_pre=q_w_curr;
     T_w_lidar.rot=q_w_curr;
     T_w_lidar.pos=Eigen::Vector3d::Zero();
 
-    //Overide with predefined pose if localization mode 
+    //Apply predefined init pose (works in both mapping and localization mode)
+    T_w_lidar.pos=Eigen::Vector3d(slam.init_x,slam.init_y,slam.init_z);
     if(slam.localization_mode){
-        T_w_lidar.pos=Eigen::Vector3d(slam.init_x,slam.init_y,slam.init_z);
         tf2::Quaternion localization_pose;
         localization_pose.setRPY(slam.init_roll, slam.init_pitch,slam.init_yaw);
         T_w_lidar.rot=Eigen::Quaterniond(localization_pose.w(), localization_pose.x(),
                                         localization_pose.y(), localization_pose.z());
-        slam.last_T_w_lidar=T_w_lidar;
     }
+    slam.last_T_w_lidar=T_w_lidar;
 
 }
 
