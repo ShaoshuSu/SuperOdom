@@ -199,6 +199,7 @@ namespace super_odometry {
         this->declare_parameter("laser_mapping_node.init_roll", 0.0);
         this->declare_parameter("laser_mapping_node.init_pitch", 0.0);
         this->declare_parameter("laser_mapping_node.init_yaw", 0.0);
+        this->declare_parameter("laser_mapping_node.min_range", 0.5);
         this->declare_parameter("map_dir", "pointcloud_local.pcd");
 
 
@@ -215,6 +216,7 @@ namespace super_odometry {
         config_.auto_voxel_size = this->get_parameter("laser_mapping_node.auto_voxel_size").as_bool();
         config_.forget_far_chunks = this->get_parameter("laser_mapping_node.forget_far_chunks").as_bool();
         config_.visual_confidence_factor = this->get_parameter("laser_mapping_node.visual_confidence_factor").as_double();
+        config_.min_range = this->get_parameter("laser_mapping_node.min_range").as_double();
         config_.map_dir = this->get_parameter("map_dir").as_string(); 
         config_.localization_mode = this->get_parameter("laser_mapping_node.localization_mode").as_bool();
         config_.read_pose_file = this->get_parameter("laser_mapping_node.read_pose_file").as_bool();
@@ -460,10 +462,11 @@ return PredictionSource::CONSTANT_VELOCITY;
             }
         }
 
+        float min_range_sq = config_.min_range * config_.min_range;
         int laserCloudFullResNum = laserCloudFullRes->points.size();
         for (int i = 0; i < laserCloudFullResNum; i++) {
             PointType const *const &pi = &laserCloudFullRes->points[i];
-            if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z < 0.01)
+            if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z < min_range_sq)
             {
                 continue;
             }
@@ -480,7 +483,7 @@ return PredictionSource::CONSTANT_VELOCITY;
         pcl::fromROSMsg(laserCloudFullRes3, laserCloudFullResCvt);
         for (int i = 0; i < laserCloudFullResNum; i++) {
           PointType const *const &pi = &laserCloudFullResCvt.points[i];
-          if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z > 0.01)
+          if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z > min_range_sq)
           {
              laserCloudFullResClean.push_back(*pi);
           }

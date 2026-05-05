@@ -23,6 +23,7 @@
 
     # Laser Mapping Params
     laser_mapping_node:
+        min_range: 1.0    #<!-- remove close points from registered scan -->
         mapping_line_resolution: 0.1
         mapping_plane_resolution: 0.1
         max_iterations: 5
