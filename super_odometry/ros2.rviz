@@ -91,7 +91,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /registered_scan
+        Value: /registered_scan_0
       Use Fixed Frame: true
       Use rainbow: true
       Value: true

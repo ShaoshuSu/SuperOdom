@@ -554,6 +554,8 @@ namespace super_odometry {
     }
 
     // 3. Process timing and queue management
+    double imuTime = secs(&thisImu);
+    double dt = (lastImuT_imu < 0) ? (1.0 / 200.0) : (imuTime - lastImuT_imu);
     processTiming(thisImu);
 
     // 4. Early return if first optimization not done
@@ -561,12 +563,21 @@ namespace super_odometry {
         return;
     }
 
-    // 5. Prepare and publish odometry
-    gtsam::NavState currentState =imuIntegratorImu_->predict(prevStateOdom, prevBiasOdom);
+    // 5. Forward-propagate state with this IMU measurement so prediction
+    //    advances between laser corrections instead of staying frozen
+    if (dt < 0.001 || dt > 0.5)
+        dt = 0.005;
+    imuIntegratorImu_->integrateMeasurement(
+        gtsam::Vector3(thisImu.linear_acceleration.x, thisImu.linear_acceleration.y, thisImu.linear_acceleration.z),
+        gtsam::Vector3(thisImu.angular_velocity.x, thisImu.angular_velocity.y, thisImu.angular_velocity.z),
+        dt);
+
+    // 6. Prepare and publish odometry
+    gtsam::NavState currentState = imuIntegratorImu_->predict(prevStateOdom, prevBiasOdom);
     nav_msgs::msg::Odometry odometry;
     publishOdometry(thisImu, currentState, odometry);
-    publishTransformsAndPath(odometry,  thisImu);   
-   
+    publishTransformsAndPath(odometry,  thisImu);
+
    }
 
    bool imuPreintegration::handleIMUInitialization(const sensor_msgs::msg::Imu::SharedPtr&imu_raw, 
@@ -645,9 +656,8 @@ void imuPreintegration::publishOdometry(
     
     prepareOdometryMessage(odometry, thisImu, currentState);
     
-    if (frame_count++ % 4 == 0) {
-        pubImuOdometry->publish(odometry);
-    }
+    ++frame_count;
+    pubImuOdometry->publish(odometry);
 
     // Publish health status
     std_msgs::msg::Bool health_status_msg;
@@ -681,8 +691,7 @@ void imuPreintegration::publishTransform(nav_msgs::msg::Odometry &odometry, cons
     q.setZ(odometry.pose.pose.orientation.z);
     transform.setRotation(q);
     transform_stamped_.transform = tf2::toMsg(transform);
-    if(frame_count%4==0)
-        br.sendTransform(transform_stamped_);
+    br.sendTransform(transform_stamped_);
 }
 
 void imuPreintegration::updateAndPublishPath(nav_msgs::msg::Odometry &odometry, const sensor_msgs::msg::Imu& thisImu){

@@ -98,7 +98,7 @@ public:
     for (std::map<double, Imu::Ptr>::iterator itMeas_ = imuBuf.measMap_.begin(); itMeas_ != imuBuf.measMap_.end(); ++itMeas_) {
 
         const double &time_cur = itMeas_->second->time;
-        const Eigen::Quaterniond rot_cur = itMeas_->second->q_w_i;
+        // const Eigen::Quaterniond rot_cur = itMeas_->second->q_w_i;  // Unused variable
         const Eigen::Vector3d gyr_cur = itMeas_->second->gyr;
         const Eigen::Vector3d acc_cur = itMeas_->second->acc;
         

@@ -13,10 +13,10 @@ def get_share_file(package_name, file_name):
 def generate_launch_description():
     config_path = get_share_file(
         package_name="super_odometry",
-        file_name="config/livox_mid360.yaml")
+        file_name="config/xt_16.yaml")
     calib_path = get_share_file(
         package_name="super_odometry",
-        file_name="config/livox/livox_mid360_calibration.yaml"
+        file_name="config/hesai/xt_16_calibration.yaml"
     )
     home_directory = os.path.expanduser("~")
     

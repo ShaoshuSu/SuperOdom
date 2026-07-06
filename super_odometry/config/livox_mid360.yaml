@@ -8,7 +8,7 @@
     
     world_frame: "map"
     world_frame_rot: "map_rot"
-    sensor_frame: "sensor"
+    sensor_frame: "sensor0"
     sensor_frame_rot: "sensor_rot"
 
     imu_acc_x_limit: 0.5
@@ -17,13 +17,15 @@
 
     # Feature Extraction Params
     feature_extraction_node:
-        scan_line: 4 
-        min_range: 0.2    #<!-- remove too closed points -->
+        scan_line: 4
+        min_range: 1.0    #<!-- remove too closed points (wires/onboard structures) -->
         filter_point_size: 3
+        azimuth_min: -180.0   # degrees; front-half FOV lower bound (−90 to +90 keeps forward 180°)
+        azimuth_max:  180.0   # degrees; set −180/+180 to disable filtering
 
     # Laser Mapping Params
     laser_mapping_node:
-        min_range: 1.0    #<!-- remove close points from registered scan -->
+        min_range: 1.0    # <!-- remove close points from registered scan -->
         mapping_line_resolution: 0.1
         mapping_plane_resolution: 0.1
         max_iterations: 5
@@ -34,7 +36,7 @@
         read_pose_file: false
         init_x: 0.0
         init_y: 0.0
-        init_z: 0.0
+        init_z: 0.2 
         init_roll: 0.0
         init_pitch: 0.0
         init_yaw: 0.0 
@@ -48,3 +50,14 @@
         acc_w: 6.4356659353532566e-05          # accelerometer bias random work noise standard deviation.  #0.02
         gyr_w: 3.5640318696367613e-05       # gyroscope bias random work noise standard deviation.     #4.0e-5
         g_norm: 9.80511    # 0 means you need to provide both imu-camera and laser-camera extrinsic
+
+    # # IMU Preintegration Params
+    # imu_preintegration_node:
+    #     lidar_correction_noise: 0.001         # 越小越信任激光校正，原值0.01导致GTSAM估计出非零速度引发厘米级抖动
+
+    #     acc_n: 0.1                            # 加速度计噪声密度，调大=不信任IMU，减少噪声放大
+    #     gyr_n: 0.01                           # 陀螺仪噪声密度，调大=不信任IMU
+    #     acc_w: 0.002                          # 加速度计bias随机游走噪声
+    #     gyr_w: 0.0004                         # 陀螺仪bias随机游走噪声
+    #     g_norm: 9.80511    # 0 means you need to provide both imu-camera and laser-camera extrinsic
+    

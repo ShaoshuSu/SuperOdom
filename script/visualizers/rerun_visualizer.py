@@ -26,7 +26,7 @@ from super_odometry_msgs.msg import OptimizationStats
 
 # Global configuration variables 
 #=================================================
-POINTCLOUD_TOPIC = '/registered_scan'
+POINTCLOUD_TOPIC = '/registered_scan_0'
 ODOMETRY_TOPIC = '/laser_odometry'
 CAMERA_TOPIC = '/camera/image_raw'
 BASE_POINT_SIZE = 0.03        # Base point size

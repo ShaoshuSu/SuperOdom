@@ -8,8 +8,9 @@ double parameters[7] = {0, 0, 0, 0, 0, 0, 1};
 Eigen::Map<Eigen::Vector3d> t_w_curr(parameters);
 Eigen::Map<Eigen::Quaterniond> q_w_curr(parameters+3);
 
-Eigen::Vector3d vel_b;
-Eigen::Vector3d ang_vel_b;
+// Velocity variables
+Eigen::Vector3d linear_velocity_body;
+Eigen::Vector3d angular_velocity_body;
 
 namespace super_odometry {
 
@@ -96,7 +97,7 @@ namespace super_odometry {
             ProjectName+"/prediction_source", 1);
 
         process_timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(static_cast<int>(100.)), 
+            std::chrono::milliseconds(static_cast<int>(100.)),
             std::bind(&laserMapping::process, this));
 
         slam.initROSInterface(shared_from_this());
@@ -199,7 +200,6 @@ namespace super_odometry {
         this->declare_parameter("laser_mapping_node.init_roll", 0.0);
         this->declare_parameter("laser_mapping_node.init_pitch", 0.0);
         this->declare_parameter("laser_mapping_node.init_yaw", 0.0);
-        this->declare_parameter("laser_mapping_node.min_range", 0.5);
         this->declare_parameter("map_dir", "pointcloud_local.pcd");
 
 
@@ -216,7 +216,6 @@ namespace super_odometry {
         config_.auto_voxel_size = this->get_parameter("laser_mapping_node.auto_voxel_size").as_bool();
         config_.forget_far_chunks = this->get_parameter("laser_mapping_node.forget_far_chunks").as_bool();
         config_.visual_confidence_factor = this->get_parameter("laser_mapping_node.visual_confidence_factor").as_double();
-        config_.min_range = this->get_parameter("laser_mapping_node.min_range").as_double();
         config_.map_dir = this->get_parameter("map_dir").as_string(); 
         config_.localization_mode = this->get_parameter("laser_mapping_node.localization_mode").as_bool();
         config_.read_pose_file = this->get_parameter("laser_mapping_node.read_pose_file").as_bool();
@@ -299,18 +298,20 @@ void laserMapping::initializeFirstFrame(){
 
     }
 
-    //initialize position
+    //initialize position 
     q_wodom_pre=q_w_curr;
     T_w_lidar.rot=q_w_curr;
     T_w_lidar.pos=Eigen::Vector3d::Zero();
 
-    // Apply predefined init pose in both mapping and localization modes.
-    T_w_lidar.pos=Eigen::Vector3d(slam.init_x,slam.init_y,slam.init_z);
-    tf2::Quaternion init_orientation;
-    init_orientation.setRPY(slam.init_roll, slam.init_pitch,slam.init_yaw);
-    T_w_lidar.rot=Eigen::Quaterniond(init_orientation.w(), init_orientation.x(),
-                                    init_orientation.y(), init_orientation.z());
-    slam.last_T_w_lidar=T_w_lidar;
+    //Overide with predefined pose if localization mode 
+    if(slam.localization_mode){
+        T_w_lidar.pos=Eigen::Vector3d(slam.init_x,slam.init_y,slam.init_z);
+        tf2::Quaternion localization_pose;
+        localization_pose.setRPY(slam.init_roll, slam.init_pitch,slam.init_yaw);
+        T_w_lidar.rot=Eigen::Quaterniond(localization_pose.w(), localization_pose.x(),
+                                        localization_pose.y(), localization_pose.z());
+        slam.last_T_w_lidar=T_w_lidar;
+    }
 
 }
 
@@ -460,11 +461,10 @@ return PredictionSource::CONSTANT_VELOCITY;
             }
         }
 
-        float min_range_sq = config_.min_range * config_.min_range;
         int laserCloudFullResNum = laserCloudFullRes->points.size();
         for (int i = 0; i < laserCloudFullResNum; i++) {
             PointType const *const &pi = &laserCloudFullRes->points[i];
-            if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z < min_range_sq)
+            if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z < 0.01)
             {
                 continue;
             }
@@ -481,7 +481,7 @@ return PredictionSource::CONSTANT_VELOCITY;
         pcl::fromROSMsg(laserCloudFullRes3, laserCloudFullResCvt);
         for (int i = 0; i < laserCloudFullResNum; i++) {
           PointType const *const &pi = &laserCloudFullResCvt.points[i];
-          if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z > min_range_sq)
+          if (pi->x* pi->x+ pi->y * pi->y + pi->z* pi->z > 0.01)
           {
              laserCloudFullResClean.push_back(*pi);
           }
@@ -517,13 +517,42 @@ return PredictionSource::CONSTANT_VELOCITY;
         odomAftMapped.pose.pose.position.y = t_w_curr.y();
         odomAftMapped.pose.pose.position.z = t_w_curr.z();
 
-        odomAftMapped.twist.twist.linear.x = vel_b.x();
-        odomAftMapped.twist.twist.linear.y = vel_b.y();
-        odomAftMapped.twist.twist.linear.z = vel_b.z();
+        // Calculate velocity
+        // double dt = timeLaserOdometry - timeLaserOdometryPrev;
 
-        odomAftMapped.twist.twist.angular.x = ang_vel_b.x();
-        odomAftMapped.twist.twist.angular.y = ang_vel_b.y();
-        odomAftMapped.twist.twist.angular.z = ang_vel_b.z();
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "dt: %f", dt);
+
+        // if (dt > 1e-6) {  // Prevent division by zero
+            
+        // Eigen::Vector3d linear_velocity = (slam.T_w_lidar.pos - last_T_w_lidar.pos) / dt;
+        // Eigen::Vector3d linear_velocity_body = q_w_curr.inverse() * linear_velocity;
+
+        // // Orientation difference (in world frame)
+        // Eigen::Quaterniond dq = q_w_curr * last_T_w_lidar.rot.inverse();
+        // Eigen::AngleAxisd angle_axis(dq);
+        // Eigen::Vector3d angular_velocity = angle_axis.axis() * angle_axis.angle() / dt;
+
+        // === Fill in velocity into odometry message ===
+        odomAftMapped.twist.twist.linear.x = linear_velocity_body.x();
+        odomAftMapped.twist.twist.linear.y = linear_velocity_body.y();
+        odomAftMapped.twist.twist.linear.z = linear_velocity_body.z();
+
+        odomAftMapped.twist.twist.angular.x = angular_velocity_body.x();
+        odomAftMapped.twist.twist.angular.y = angular_velocity_body.y();
+        odomAftMapped.twist.twist.angular.z = angular_velocity_body.z();
+
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.linear.x: %f", odomAftMapped.twist.twist.linear.x);
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.linear.y: %f", odomAftMapped.twist.twist.linear.y);
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.linear.z: %f", odomAftMapped.twist.twist.linear.z);
+
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.angular.x: %f", odomAftMapped.twist.twist.angular.x);
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.angular.y: %f", odomAftMapped.twist.twist.angular.y);
+        // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "odomAftMapped.twist.twist.angular.z: %f", odomAftMapped.twist.twist.angular.z);
+
+        // // Optionally set covariance (here we assume small noise)
+        // for (int i = 0; i < 36; ++i)
+        //     odomAftMapped.twist.covariance[i] = 0.01;
+        // }
 
         nav_msgs::msg::Odometry laserOdomIncremental;
 
@@ -742,26 +771,42 @@ return PredictionSource::CONSTANT_VELOCITY;
         slam.laser_imu_sync=laser_imu_sync;
         initialization = true;
 
-        // Calculate linear and angular velocity
+        // Calculate velocity
         double dt = timeLaserOdometry - timeLaserOdometryPrev;
+        RCLCPP_INFO(rclcpp::get_logger("laserMapping111"), "dt: %f", dt);
 
-        if (dt > 1e-6) {  
-            Eigen::Vector3d vel_w = (t_w_curr - last_T_w_lidar.pos) / dt;
-            vel_b = q_w_curr.inverse() * vel_w;     
+        if (dt > 1e-6) {  // Prevent division by zero
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "Calculate velocity");
+            Eigen::Vector3d linear_velocity = (t_w_curr - last_T_w_lidar.pos) / dt;
+            linear_velocity_body = q_w_curr.inverse() * linear_velocity;
 
+            // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "linear_velocity_body: %f", linear_velocity_body.x());
+            // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "linear_velocity_body: %f", linear_velocity_body.y());
+            // RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "linear_velocity_body: %f", linear_velocity_body.z());
+            
+            // Angular velocity in world frame     
             Eigen::Quaterniond dq = q_w_curr * last_T_w_lidar.rot.inverse();
             Eigen::AngleAxisd angle_axis(dq);
-            Eigen::Vector3d ang_vel_w = angle_axis.axis() * angle_axis.angle() / dt;
-            ang_vel_b = q_w_curr.inverse() * ang_vel_w;
+            Eigen::Vector3d angular_velocity_world = angle_axis.axis() * angle_axis.angle() / dt;
+            angular_velocity_body = q_w_curr.inverse() * angular_velocity_world;
+
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_world x: %f", angular_velocity_world.x());
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_world y: %f", angular_velocity_world.y());
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_world z: %f", angular_velocity_world.z());
+            
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_body x: %f", angular_velocity_body.x());
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_body y: %f", angular_velocity_body.y());
+            RCLCPP_INFO(rclcpp::get_logger("laserMapping"), "angular_velocity_body z: %f", angular_velocity_body.z());
         } else {
-            vel_b = Eigen::Vector3d::Zero();
-            ang_vel_b = Eigen::Vector3d::Zero();
+            // If dt is too small, set velocities to zero
+            linear_velocity_body = Eigen::Vector3d::Zero();
+            angular_velocity_body = Eigen::Vector3d::Zero();
         }
 
         //2. Publish results 
         publishTopic();
 
-        //3. Store current pose and time for next iteration
+        //3. save the current pose to last pose
         last_T_w_lidar = slam.T_w_lidar;
         timeLaserOdometryPrev = timeLaserOdometry;
     }

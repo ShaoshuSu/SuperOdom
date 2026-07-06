@@ -69,6 +69,8 @@ namespace super_odometry {
         float min_range;
         float max_range;
         int filter_point_size;
+        float azimuth_min;
+        float azimuth_max;
         SensorType sensor;
         double imu_acc_x_limit;
         double imu_acc_y_limit;

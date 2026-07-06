@@ -22,18 +22,21 @@ sleep 1
 CONTAINER_NAME="$1"
 IMAGE_NAME="$2"
 PROJECT_DIR="/home/unitree/superodom_ws"
+D1_DIR="/home/unitree/d1_ws"
 DATASET_DIR="/path/to/your/dataset"
 
 # Allow X server connections
-xhost +local:docker
+# xhost +local:docker
+xhost +SI:localuser:root #####
 
 # Launch the nvidia-docker container with the provided image name and tag
-docker run --privileged -it \
-            --runtime=nvidia \
-            --gpus all \
+docker run --privileged -it\
+           --runtime=nvidia \
+           --gpus all \
            -e NVIDIA_DRIVER_CAPABILITIES=all \
            -e NVIDIA_VISIBLE_DEVICES=all \
-           --volume="$PROJECT_DIR:/root/ros2_ws" \
+           --volume="$PROJECT_DIR:/root/superodom_ws" \
+           --volume="$D1_DIR:/root/d1_ws" \
            --volume="$DATASET_DIR:/root/data" \
            --volume=/tmp/.X11-unix:/tmp/.X11-unix:rw \
            --net=host \
@@ -44,4 +47,4 @@ docker run --privileged -it \
            --env="QT_X11_NO_MITSHM=1" \
            --env="XAUTHORITY=$XAUTHORITY" \
            --env="QT_GRAPHICSSYSTEM=native" \
-           "$IMAGE_NAME" /bin/bash
+           "$IMAGE_NAME" /bin/bash           

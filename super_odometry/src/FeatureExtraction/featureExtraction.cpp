@@ -128,6 +128,8 @@ namespace super_odometry {
         this->declare_parameter<float>("feature_extraction_node.min_range", 0.2);
         this->declare_parameter<float>("feature_extraction_node.max_range", 130.0);
         this->declare_parameter<int>("feature_extraction_node.filter_point_size", 3);
+        this->declare_parameter<float>("feature_extraction_node.azimuth_min", -180.0);
+        this->declare_parameter<float>("feature_extraction_node.azimuth_max",  180.0);
         this->declare_parameter<int>("feature_extraction_node.provide_point_time", 1);
         this->declare_parameter<bool>("feature_extraction_node.debug_view", false);
         this->declare_parameter<double>("feature_extraction_node.imu_acc_x_limit", 1.0);
@@ -146,6 +148,8 @@ namespace super_odometry {
         config_.min_range = this->get_parameter("feature_extraction_node.min_range").as_double();
         config_.max_range = this->get_parameter("feature_extraction_node.max_range").as_double();
         config_.filter_point_size = this->get_parameter("feature_extraction_node.filter_point_size").as_int();
+        config_.azimuth_min = this->get_parameter("feature_extraction_node.azimuth_min").as_double();
+        config_.azimuth_max = this->get_parameter("feature_extraction_node.azimuth_max").as_double();
         config_.provide_point_time = this->get_parameter("feature_extraction_node.provide_point_time").as_int();
         config_.use_dynamic_mask = this->get_parameter("feature_extraction_node.use_dynamic_mask").as_bool(); 
         config_.debug_view_enabled = this->get_parameter("feature_extraction_node.debug_view").as_bool();
@@ -496,6 +500,10 @@ namespace super_odometry {
         }
         else
         {
+            double lidar_start_time = 0.0;  // Initialize to avoid uninitialized warning
+            if (lidarBuf.getSize() > 0) {
+                lidarBuf.getFirstTime(lidar_start_time);
+            }
             RCLCPP_WARN(this->get_logger(), "sync unsuccessfull, skipping scan frame");
         }
         
@@ -512,10 +520,12 @@ namespace super_odometry {
             point.z=pc_in->points[i].z;
             point.intensity=pc_in->points[i].time;
 
-            if ((abs(pc_in->points[i].x - pc_in->points[i-1].x) > 1e-7)
+            float azimuth = atan2(point.y, point.x) * 180.0f / M_PI;
+            if (((abs(pc_in->points[i].x - pc_in->points[i-1].x) > 1e-7)
                 || (abs(pc_in->points[i].y - pc_in->points[i-1].y) > 1e-7)
-                || (abs(pc_in->points[i].z - pc_in->points[i-1].z) > 1e-7)
-                && (pc_in->points[i].x * pc_in->points[i].x + pc_in->points[i].y * pc_in->points[i].y + pc_in->points[i].z * pc_in->points[i].z > (block_range * block_range)))
+                || (abs(pc_in->points[i].z - pc_in->points[i-1].z) > 1e-7))
+                && (pc_in->points[i].x * pc_in->points[i].x + pc_in->points[i].y * pc_in->points[i].y + pc_in->points[i].z * pc_in->points[i].z > (block_range * block_range))
+                && (azimuth >= config_.azimuth_min && azimuth <= config_.azimuth_max))
             {
                 pc_out_surf->push_back(point);
             }
